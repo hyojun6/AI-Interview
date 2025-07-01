@@ -30,7 +30,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onStartInterview }) => {
     todayQuestions: 7
   };
 
-  // 주간 진행률 데이터 (면접 질문 개수 기준, 1개당 10%)
   const weeklyProgress = [
     { day: '월', questions: 8, percentage: Math.min(8 * 10, 100) },
     { day: '화', questions: 7, percentage: Math.min(7 * 10, 100) },

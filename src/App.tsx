@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useInterviewSession } from './hooks/useInterviewSession';
 import { Dashboard } from './components/Dashboard';
 import { InterviewSetup } from './components/InterviewSetup';
@@ -33,10 +33,6 @@ function App() {
     resetInterview();
   };
 
-  const handleInterviewComplete = () => {
-    setAppState('results');
-  };
-
   const handleRestart = () => {
     setAppState('dashboard');
     resetInterview();
@@ -64,7 +60,6 @@ function App() {
     );
   }
 
-  // State-based rendering
   switch (appState) {
     case 'dashboard':
       return <Dashboard onStartInterview={handleStartInterview} />;

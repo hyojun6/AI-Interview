@@ -15,7 +15,6 @@ import uuid
 DATABASE_CONN = "mysql+mysqlconnector://root:interview@127.0.0.1:3309/interview"
 engine = create_engine(DATABASE_CONN, poolclass=QueuePool,pool_size=10, max_overflow=0)
 
-# Initialize Vertex AI
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/yanghyojun/Downloads/fa-interview-464510-b314020b9d83.json"
 vertexai.init(
     project="fa-interview-464510",
@@ -24,19 +23,16 @@ vertexai.init(
 
 app = FastAPI(title="AI Interview Practice API")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize Gemini model
 model = GenerativeModel("gemini-2.0-flash-001")
 
-# Pydantic models
 class InterviewConfig(BaseModel):
     field: str
     difficulty: str
@@ -64,7 +60,6 @@ class ResultsRequest(BaseModel):
     answers: List[Answer]
     config: InterviewConfig
 
-# Helper functions
 def get_field_context(field: str) -> str:
     contexts = {
         "technology": "소프트웨어 개발, 프로그래밍, 시스템 설계, 기술적 문제 해결",
@@ -128,16 +123,14 @@ async def generate_questions(config: InterviewConfig):
         """
         print("▶️ 프롬프트 시작\n", prompt, "\n◀️ 프롬프트 끝")
         response = model.generate_content(prompt)
-        print("Gemini response raw:", response)  # 👈 Gemini 응답 전체 출력
+        print("Gemini response raw:", response) 
         
-        # Parse the JSON response
         try:
             json_text = extract_json_from_codeblock(response.text)
             questions_data = json.loads(json_text)
             questions = [Question(**q) for q in questions_data]
             return {"questions": questions}
         except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
             fallback_questions = [
                 Question(
                     id=str(i+1),
@@ -149,7 +142,7 @@ async def generate_questions(config: InterviewConfig):
             return {"questions": fallback_questions}
     
     except Exception as e:
-        print("Error in generate_questions:", e)  # 👈 이 줄 추가
+        print("Error in generate_questions:", e)
         raise HTTPException(status_code=500, detail=f"Error generating questions: {str(e)}")
 
 @app.post("/api/evaluate-answer")
@@ -200,24 +193,23 @@ async def evaluate_answer(evaluation_request: EvaluationRequest):
             score = 75
             feedback = "Your answer shows understanding of the topic. Consider providing more specific examples."
 
-        # 👉 DB 저장
-        # try:
-        #     with engine.begin() as conn:
-        #         insert_query = text("""
-        #             INSERT INTO TBL_evaluations (field, level, question, answer, feedback, score, session_id)
-        #             VALUES (:field, :level, :question, :answer, :feedback, :score, :session_id)
-        #         """)
-        #         conn.execute(insert_query, {
-        #             "field": evaluation_request.field,
-        #             "level": evaluation_request.difficulty,
-        #             "question": evaluation_request.question,
-        #             "answer": evaluation_request.answer,
-        #             "feedback": feedback,
-        #             "score": score,
-        #             "session_id": str(uuid.uuid4())  # 세션 ID가 없다면 임의 생성 (또는 클라이언트에서 넘기도록 수정)
-        #         })
-        # except SQLAlchemyError as db_err:
-        #     print("❌ DB insert error:", db_err)
+        try:
+            with engine.begin() as conn:
+                insert_query = text("""
+                    INSERT INTO TBL_evaluations (field, level, question, answer, feedback, score, session_id)
+                    VALUES (:field, :level, :question, :answer, :feedback, :score, :session_id)
+                """)
+                conn.execute(insert_query, {
+                    "field": evaluation_request.field,
+                    "level": evaluation_request.difficulty,
+                    "question": evaluation_request.question,
+                    "answer": evaluation_request.answer,
+                    "feedback": feedback,
+                    "score": score,
+                    "session_id": str(uuid.uuid4())
+                })
+        except SQLAlchemyError as db_err:
+            print("❌ DB insert error:", db_err)
 
         return {
             "score": score,
@@ -230,11 +222,9 @@ async def evaluate_answer(evaluation_request: EvaluationRequest):
 @app.post("/api/get-results")
 async def get_results(results_request: ResultsRequest):
     try:
-        # Calculate average score
         scores = [answer.score for answer in results_request.answers if answer.score is not None]
         average_score = sum(scores) / len(scores) if scores else 0
         
-        # Generate comprehensive feedback
         answers_summary = "\n".join([
             f"Q: {answer.questionId} - Score: {answer.score} - Answer: {answer.answer[:100]}..."
             for answer in results_request.answers
@@ -276,7 +266,6 @@ async def get_results(results_request: ResultsRequest):
             result = [Question(**q) for q in result_data]
             return result
         except json.JSONDecodeError:
-            # Fallback results
             return {
                 "totalQuestions": results_request.config.questionCount,
                 "averageScore": average_score,
@@ -292,6 +281,18 @@ async def get_results(results_request: ResultsRequest):
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "message": "AI Interview Practice API is running"}
+
+@app.get("/api/week")
+async def cal_week():
+    try:
+        with engine.begin() as conn:
+            query = text("""
+                select count(created_at) from TBL_evaluations
+            """)
+            week = conn.execute(insert_query)
+    except SQLAlchemyError as db_err:
+        print("❌ DB error:", db_err)
+    return week;
 
 if __name__ == "__main__":
     import uvicorn
