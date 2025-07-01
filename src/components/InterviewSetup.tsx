@@ -67,7 +67,7 @@ export const InterviewSetup: React.FC<InterviewSetupProps> = ({ onStart, onBack,
   const [config, setConfig] = useState<InterviewConfig>({
     field: 'technology',
     difficulty: '초급',
-    questionCount: 5,
+    questionCount: 1,
   });
 
   const handleStart = () => {

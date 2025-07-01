@@ -10,7 +10,7 @@ export const useInterviewSession = () => {
   const startInterview = useCallback(async (config: InterviewConfig) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const questions = await interviewService.generateQuestions(config);
       const newSession: InterviewSession = {

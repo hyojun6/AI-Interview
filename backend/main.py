@@ -102,10 +102,12 @@ async def generate_questions(config: InterviewConfig):
         difficulty_level = get_difficulty_level(config.difficulty)
         
         prompt = f"""
-        {config.questionCount}개의 {config.field} 분야 인터뷰 질문을 {config.difficulty} 수준에 맞게 생성해주세요.
+        {config.field} 분야 인터뷰 질문을 {config.difficulty} 수준에 맞게 생성해주세요.
+        질문 갯수 : 1개
         배경 설명: {field_context}
         난이도: {difficulty_level}
         요구사항:
+        문제 갯수 1개입니다.
         질문은 {config.difficulty} 수준에 적합해야 합니다.
         {field_context}에 집중해주세요.
         가능하다면 기술적인 질문과 행동면접 질문을 혼합해서 포함해주세요.
@@ -124,7 +126,7 @@ async def generate_questions(config: InterviewConfig):
                 }}
             ]
         """
-        
+        print("▶️ 프롬프트 시작\n", prompt, "\n◀️ 프롬프트 끝")
         response = model.generate_content(prompt)
         print("Gemini response raw:", response)  # 👈 Gemini 응답 전체 출력
         
@@ -157,32 +159,33 @@ async def evaluate_answer(evaluation_request: EvaluationRequest):
         difficulty_level = get_difficulty_level(evaluation_request.difficulty)
 
         prompt = f"""
-        다음 인터뷰 결과를 바탕으로 종합적인 평가 요약을 작성해 주세요.
-        
-        분야: {results_request.config.field}
-        난이도: {results_request.config.difficulty}
-        총 질문 수: {results_request.config.questionCount}
-        평균 점수: {average_score:.1f}
-        
-        답변 요약:
-        {answers_summary}
-        
-        JSON 형식으로 다음 내용을 포함해 주세요:
-        1. totalQuestions: 질문 총 수
-        2. averageScore: 평균 점수
-        3. feedback: 전반적인 평가 요약
-        4. strengths: 3~5가지 주요 강점
-        5. improvements: 3~5가지 개선 사항
-        
-        형식 예시:
-        {{
-            "totalQuestions": {results_request.config.questionCount},
-            "averageScore": {average_score:.1f},
-            "feedback": "전체적으로 훌륭한 성과를 보였습니다...",
-            "strengths": ["명확한 의사소통", "관련 사례 제시", "전문적인 태도"],
-            "improvements": ["구체적 세부사항 보완", "답변 구조 개선", "결론 강화"]
-        }}
-        """
+            다음은 {evaluation_request.field} 분야의 {evaluation_request.difficulty} 수준 인터뷰 답변 평가 요청입니다.
+
+            질문: {evaluation_request.question}
+            답변: {evaluation_request.answer}
+
+            배경 설명: {field_context}
+            난이도: {difficulty_level}
+
+            평가 기준:
+            1. 점수 (0-100): 질문 관련성, 답변 완성도, 품질을 기반으로 산출
+            2. 피드백: 강점과 개선할 점에 대한 상세한 설명
+
+            평가 시 고려할 사항:
+            - 질문과의 관련성
+            - 답변의 완전성
+            - 의사소통의 명확성
+            - 기술적 정확성 (해당 시)
+            - 전문적인 표현
+            - 구체적인 사례나 근거 제시
+
+            결과는 JSON 형식으로 반환해 주세요. 출력 예시:
+            {{
+                "score": 85,
+                "feedback": "답변은 개념에 대한 이해도가 높으며..."
+            }}
+            """
+
 
         response = model.generate_content(prompt)
 
@@ -198,23 +201,23 @@ async def evaluate_answer(evaluation_request: EvaluationRequest):
             feedback = "Your answer shows understanding of the topic. Consider providing more specific examples."
 
         # 👉 DB 저장
-        try:
-            with engine.begin() as conn:
-                insert_query = text("""
-                    INSERT INTO TBL_evaluations (field, level, question, answer, feedback, score, session_id)
-                    VALUES (:field, :level, :question, :answer, :feedback, :score, :session_id)
-                """)
-                conn.execute(insert_query, {
-                    "field": evaluation_request.field,
-                    "level": evaluation_request.difficulty,
-                    "question": evaluation_request.question,
-                    "answer": evaluation_request.answer,
-                    "feedback": feedback,
-                    "score": score,
-                    "session_id": str(uuid.uuid4())  # 세션 ID가 없다면 임의 생성 (또는 클라이언트에서 넘기도록 수정)
-                })
-        except SQLAlchemyError as db_err:
-            print("❌ DB insert error:", db_err)
+        # try:
+        #     with engine.begin() as conn:
+        #         insert_query = text("""
+        #             INSERT INTO TBL_evaluations (field, level, question, answer, feedback, score, session_id)
+        #             VALUES (:field, :level, :question, :answer, :feedback, :score, :session_id)
+        #         """)
+        #         conn.execute(insert_query, {
+        #             "field": evaluation_request.field,
+        #             "level": evaluation_request.difficulty,
+        #             "question": evaluation_request.question,
+        #             "answer": evaluation_request.answer,
+        #             "feedback": feedback,
+        #             "score": score,
+        #             "session_id": str(uuid.uuid4())  # 세션 ID가 없다면 임의 생성 (또는 클라이언트에서 넘기도록 수정)
+        #         })
+        # except SQLAlchemyError as db_err:
+        #     print("❌ DB insert error:", db_err)
 
         return {
             "score": score,
@@ -277,10 +280,11 @@ async def get_results(results_request: ResultsRequest):
             return {
                 "totalQuestions": results_request.config.questionCount,
                 "averageScore": average_score,
-                "feedback": f"You completed {results_request.config.questionCount} questions with an average score of {average_score:.1f}%",
-                "strengths": ["Good communication", "Relevant examples", "Professional demeanor"],
-                "improvements": ["More specific details", "Better structure", "Stronger conclusions"]
+                "feedback": f"{results_request.config.questionCount}개의 질문에 답변하셨으며, 평균 점수는 {average_score:.1f}점입니다.",
+                "strengths": ["명확한 의사소통", "적절한 사례 제시", "전문적인 태도"],
+                "improvements": ["더 구체적인 내용 보완", "답변 구조 개선", "결론 부분 강화"]
             }
+
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating results: {str(e)}")
