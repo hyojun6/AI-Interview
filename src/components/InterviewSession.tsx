@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Clock, User, Mic, MicOff, Send, ArrowRight } from 'lucide-react';
+import { MessageSquare, User, Send, ArrowRight } from 'lucide-react';
 import { InterviewSession as InterviewSessionType } from '../types';
 
 interface InterviewSessionProps {
@@ -14,7 +14,6 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({
   loading 
 }) => {
   const [answer, setAnswer] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
   const currentQuestion = session.questions[session.currentQuestionIndex];
   const progress = ((session.currentQuestionIndex + 1) / session.questions.length) * 100;
 
@@ -23,11 +22,6 @@ export const InterviewSession: React.FC<InterviewSessionProps> = ({
       onSubmitAnswer(answer.trim());
       setAnswer('');
     }
-  };
-
-  const toggleRecording = () => {
-    setIsRecording(!isRecording);
-    // TODO: Implement voice recording functionality
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, TrendingUp, AlertCircle, CheckCircle, RotateCcw, Download } from 'lucide-react';
+import { Trophy, TrendingUp, AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
 import { InterviewSession, InterviewResult } from '../types';
 
 interface InterviewResultsProps {

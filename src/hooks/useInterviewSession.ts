@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { InterviewSession, InterviewConfig, Question, Answer, InterviewResult } from '../types';
+import { InterviewSession, InterviewConfig, Answer, InterviewResult } from '../types';
 import { interviewService } from '../services/interviewService';
 
 export const useInterviewSession = () => {
